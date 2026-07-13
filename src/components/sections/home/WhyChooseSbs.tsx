@@ -33,9 +33,9 @@ const CARDS: CardData[] = [
     title: "Industry Based Training",
     image: "/images/WhyChooseSbs/card1.jpg",
     bullets: [
-      { label: "Fiduciary First", description: "Your interests always come before ours — legally and ethically." },
-      { label: "Full Transparency", description: "No hidden fees, no surprises. Clear reporting at every step." },
-      { label: "20+ Years", description: "Two decades of navigating markets for our clients' benefit." },
+      { label: "Hands-on Focus", description: "Work on real projects, execute practical workflows, and build an impressive portfolio." },
+      { label: "Expert Mentorship", description: "Learn directly from professionals who are currently working in top-tier companies." },
+      { label: "Curriculum Excellence", description: "Regularly updated course outlines to match current business administration standards." },
     ],
   },
   {
@@ -43,9 +43,9 @@ const CARDS: CardData[] = [
     title: "Career Focused Programs",
     image: "/images/WhyChooseSbs/card2.jpg",
     bullets: [
-      { label: "Data-Driven Frameworks", description: "Every strategy backed by rigorous quantitative analysis." },
-      { label: "Regular Rebalancing", description: "Portfolios reviewed and realigned to your evolving goals." },
-      { label: "₹500Cr+ Managed", description: "Proven scale with institutional-grade discipline." },
+      { label: "Job Readiness", description: "Build skills tailored directly to what hiring managers check during selections." },
+      { label: "Resume Optimization", description: "Receive help detailing your project accomplishments on your profile and resume." },
+      { label: "Interview Simulation", description: "Extensive mock drills with corporate mentors to overcome interview anxiety." },
     ],
   },
   {
@@ -53,9 +53,9 @@ const CARDS: CardData[] = [
     title: "Expert Trainers",
     image: "/images/WhyChooseSbs/card3.jpg",
     bullets: [
-      { label: "One Dedicated Advisor", description: "A single trusted expert who knows your complete financial picture." },
-      { label: "Custom Strategy", description: "Tailored plans built around your life, not a template." },
-      { label: "24hr Response", description: "Priority access whenever markets move or questions arise." },
+      { label: "One-on-One Guidance", description: "A dedicated mentor to guide your individual upskilling and career direction." },
+      { label: "Corporate Background", description: "Trainers who bring years of execution experience from the corporate world." },
+      { label: "Active Doubt Support", description: "Priority resolution of queries, helping you debug problems and master concepts." },
     ],
   },
   {
@@ -63,9 +63,9 @@ const CARDS: CardData[] = [
     title: "HR Consultancy Support",
     image: "/images/WhyChooseSbs/card4.jpg",
     bullets: [
-      { label: "Generational Thinking", description: "Building wealth that outlasts you and benefits those who follow." },
-      { label: "Compounding Focus", description: "Patient, disciplined strategies that let time do the heavy lifting." },
-      { label: "10yr+ Avg Tenure", description: "Clients who stay because results speak for themselves." },
+      { label: "Recruiter Network", description: "Direct access to a vetted network of hiring managers across the region." },
+      { label: "Placement Drives", description: "Regular placement sessions and direct screening opportunities for trainees." },
+      { label: "Placement Success", description: "95%+ of trainees secure placements or internships within their domain." },
     ],
   },
 ];
@@ -87,35 +87,17 @@ function wrappedDiff(index: number, active: number, total: number): number {
 
 type SlotConfig = { x: number; scale: number; opacity: number; zIndex: number; rotateY: number };
 
+const SLOTS: Record<number, SlotConfig> = {
+  [-1]: { x: -240, scale: 0.84, opacity: 0.75, zIndex: 20, rotateY: 28 },
+  [0]:  { x: 0,    scale: 1,    opacity: 1,    zIndex: 30, rotateY: 0  },
+  [1]:  { x: 240,  scale: 0.84, opacity: 0.75, zIndex: 20, rotateY: -28 },
+};
+
 export default function WhyChooseSBS() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [flippedIndex, setFlippedIndex] = useState<number | null>(null);
   const isPausedRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [windowWidth, setWindowWidth] = useState(1200);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const isMobileSize = windowWidth < 480;
-  const isTabletSize = windowWidth >= 480 && windowWidth < 1024;
-
-  const cardW = isMobileSize ? 260 : isTabletSize ? 290 : 340;
-  const cardH = isMobileSize ? 360 : isTabletSize ? 390 : 440;
-  const slotX = isMobileSize ? 160 : isTabletSize ? 200 : 240;
-  const slotScale = isMobileSize ? 0.78 : isTabletSize ? 0.82 : 0.84;
-
-  const slots: Record<number, { x: number; scale: number; opacity: number; zIndex: number; rotateY: number }> = {
-    [-1]: { x: -slotX, scale: slotScale, opacity: 0.75, zIndex: 20, rotateY: 28 },
-    [0]:  { x: 0,      scale: 1,         opacity: 1,    zIndex: 30, rotateY: 0  },
-    [1]:  { x: slotX,  scale: slotScale, opacity: 0.75, zIndex: 20, rotateY: -28 },
-  };
 
   // Autoplay — uses ref so interval always sees latest state
   const startAutoplay = useCallback(() => {
@@ -163,13 +145,13 @@ export default function WhyChooseSBS() {
 
     // Cards not in visible slots (-1, 0, 1) sit off-screen for smooth slide-in
     if (absDiff >= 2) {
-      const offX = diff > 0 ? (slotX * 2.3) : -(slotX * 2.3);
+      const offX = diff > 0 ? 560 : -560;
       return {
         position: "absolute",
         left: "50%", top: "50%",
-        marginLeft: `-${cardW / 2}px`,
-        marginTop: `-${cardH / 2}px`,
-        width: `${cardW}px`, height: `${cardH}px`,
+        marginLeft: `-${CARD_W / 2}px`,
+        marginTop: `-${CARD_H / 2}px`,
+        width: `${CARD_W}px`, height: `${CARD_H}px`,
         transform: `translateX(${offX}px) scale(0.65) rotateY(${diff > 0 ? -35 : 35}deg) translateZ(-200px)`,
         opacity: 0,
         zIndex: 5,
@@ -178,13 +160,13 @@ export default function WhyChooseSBS() {
       };
     }
 
-    const s = slots[diff];
+    const s = SLOTS[diff];
     return {
       position: "absolute",
       left: "50%", top: "50%",
-      marginLeft: `-${cardW / 2}px`,
-      marginTop: `-${cardH / 2}px`,
-      width: `${cardW}px`, height: `${cardH}px`,
+      marginLeft: `-${CARD_W / 2}px`,
+      marginTop: `-${CARD_H / 2}px`,
+      width: `${CARD_W}px`, height: `${CARD_H}px`,
       transform: `translateX(${s.x}px) scale(${s.scale}) rotateY(${s.rotateY}deg) translateZ(${diff === 0 ? 0 : -120}px)`,
       opacity: s.opacity,
       zIndex: s.zIndex,
@@ -230,7 +212,7 @@ export default function WhyChooseSBS() {
           fontWeight: 700, lineHeight: 1.18,
           color: "#1a1a1a", margin: 0, letterSpacing: "-0.5px",
         }}>
-          Financial Strategies{" "}
+          Career Programs{" "}
           <em style={{ fontStyle: "italic", color: "#8a6a1f" }}>Rooted In</em>
           <br />Trust, Precision &amp; Stability
         </h2>
@@ -249,7 +231,7 @@ export default function WhyChooseSBS() {
         style={{
           position: "relative",
           width: "100%", maxWidth: "1100px",
-          height: `${cardH + 20}px`,
+          height: `${CARD_H + 20}px`,
           perspective: "1200px",
           transformStyle: "preserve-3d",
         }}

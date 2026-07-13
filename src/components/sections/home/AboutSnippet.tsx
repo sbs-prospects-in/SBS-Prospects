@@ -2,18 +2,51 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { motion, useInView } from "framer-motion";
+import Link from "next/link";
+
+interface Particle {
+  x: number; y: number; size: number;
+  speedX: number; speedY: number;
+  opacity: number; life: number; maxLife: number;
+}
+
+function resetParticle(p: Particle, W: number, H: number, init = false) {
+  p.x = Math.random() * W;
+  p.y = init ? Math.random() * H : H + 10;
+  p.size = Math.random() * 2 + 0.5;
+  p.speedY = -(Math.random() * 0.4 + 0.2);
+  p.speedX = (Math.random() - 0.5) * 0.3;
+  p.opacity = Math.random() * 0.5 + 0.1;
+  p.life = 0;
+  p.maxLife = Math.random() * 300 + 200;
+}
 
 export default function AboutSnippet() {
   const sectionRef = useRef<HTMLElement>(null);
-  const cardRef    = useRef<HTMLDivElement>(null);
-  const inView     = useInView(cardRef, { once: true, margin: "-60px 0px" });
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const curDotRef  = useRef<HTMLDivElement>(null);
+  const curRingRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(false);
+  const [curBig, setCurBig] = useState(false);
   const [counters, setCounters] = useState({ years: 0, clients: 0, assets: 0, retention: 0 });
+
+  /* ── Intersection observer ── */
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setActive(true); obs.disconnect(); } },
+      { threshold: 0.05 }
+    );
+    obs.observe(el);
+    setTimeout(() => setActive(true), 150);
+    return () => obs.disconnect();
+  }, []);
 
   /* ── Count-up ── */
   useEffect(() => {
-    if (!inView) return;
-    const targets = { years: 15, clients: 13, assets: 500, retention: 98 };
+    if (!active) return;
+    const targets = { years: 6, clients: 1500, assets: 50, retention: 95 };
     const duration = 1800;
     const start = performance.now();
     let rafId: number;
@@ -28,413 +61,570 @@ export default function AboutSnippet() {
       });
       if (p < 1) rafId = requestAnimationFrame(tick);
     };
-    const t = setTimeout(() => { rafId = requestAnimationFrame(tick); }, 500);
+    const t = setTimeout(() => { rafId = requestAnimationFrame(tick); }, 600);
     return () => { clearTimeout(t); cancelAnimationFrame(rafId); };
-  }, [inView]);
+  }, [active]);
+
+  /* ── Particles ── */
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d")!;
+    let W = 0, H = 0, raf: number;
+    const particles: Particle[] = [];
+    const resize = () => {
+      W = canvas.width  = canvas.offsetWidth;
+      H = canvas.height = canvas.offsetHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    for (let i = 0; i < 60; i++) {
+      const p = {} as Particle;
+      resetParticle(p, W, H, true);
+      particles.push(p);
+    }
+    const loop = () => {
+      ctx.clearRect(0, 0, W, H);
+      particles.forEach(p => {
+        p.x += p.speedX; p.y += p.speedY; p.life++;
+        if (p.life > p.maxLife) resetParticle(p, W, H, false);
+        const alpha = p.life < 30 ? p.life / 30 : p.life > p.maxLife - 30 ? (p.maxLife - p.life) / 30 : 1;
+        ctx.save();
+        ctx.globalAlpha = p.opacity * alpha;
+        ctx.fillStyle = "#C9A84C";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, []);
+
+  /* ── Custom cursor ── */
+  useEffect(() => {
+    let rx = 0, ry = 0, mx = 0, my = 0, rafId: number;
+    const onMove = (e: MouseEvent) => {
+      mx = e.clientX; my = e.clientY;
+      if (curDotRef.current) {
+        curDotRef.current.style.left = mx + "px";
+        curDotRef.current.style.top  = my + "px";
+      }
+    };
+    const animRing = () => {
+      rx += (mx - rx) * 0.11;
+      ry += (my - ry) * 0.11;
+      if (curRingRef.current) {
+        curRingRef.current.style.left = rx + "px";
+        curRingRef.current.style.top  = ry + "px";
+      }
+      rafId = requestAnimationFrame(animRing);
+    };
+    animRing();
+    document.addEventListener("mousemove", onMove);
+    return () => { document.removeEventListener("mousemove", onMove); cancelAnimationFrame(rafId); };
+  }, []);
+
+  /* ── Parallax ── */
+  useEffect(() => {
+    const onScroll = () => {
+      const img = document.querySelector<HTMLElement>(".sbs-founder-parallax");
+      if (img) img.style.transform = `translateY(${window.scrollY * 0.03}px)`;
+    };
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const onEnter = () => setCurBig(true);
+  const onLeave = () => setCurBig(false);
+
+  const words = [
+    { text: "Career",     em: false },
+    { text: "Confidence", em: false },
+    { text: "Built",      em: false },
+    { text: "On",         em: false },
+    { text: "Skills,",    em: true  },
+    { text: "Mentorship", em: true  },
+    { text: "&",          em: false },
+    { text: "Growth",     em: true  },
+  ];
 
   return (
     <>
       <style>{`
-        /* ── button hover ── */
-        .sbs-about-btn { position:relative; overflow:hidden; cursor:pointer; transition: opacity .2s; }
-        .sbs-about-btn-bg {
+        * { cursor: none !important; }
+
+        /* ── cursor ── */
+        .sbs-cur-dot {
+          position: fixed; border-radius: 50%;
+          pointer-events: none; z-index: 9999;
+          transform: translate(-50%, -50%);
+          transition: width .25s, height .25s;
+          mix-blend-mode: multiply;
+          width: 10px; height: 10px;
+          background: #C9A84C;
+        }
+        .sbs-cur-dot.big { width: 20px; height: 20px; }
+        .sbs-cur-ring {
+          position: fixed; border-radius: 50%;
+          border: 1.5px solid rgba(201,168,76,0.55);
+          pointer-events: none; z-index: 9998;
+          transform: translate(-50%, -50%);
+          transition: width .25s, height .25s;
+          width: 36px; height: 36px;
+        }
+        .sbs-cur-ring.big { width: 56px; height: 56px; }
+
+        /* ── word animation ── */
+        .sbs-word-outer { display:inline-block; overflow:hidden; }
+        .sbs-word-inner {
+          display:inline-block; margin-right:0.22em;
+          opacity:0; transform:translateY(105%);
+          transition:opacity .6s, transform .6s cubic-bezier(.16,1,.3,1);
+        }
+        .sbs-active .sbs-word-inner { opacity:1; transform:translateY(0); }
+
+        /* ── gold rule ── */
+        .sbs-gold-rule {
+          height:2px;
+          background:linear-gradient(90deg,#C9A84C,rgba(201,168,76,.15));
+          width:0; margin:20px 0 24px;
+          transition:width .9s cubic-bezier(.16,1,.3,1) .7s;
+        }
+        .sbs-active .sbs-gold-rule { width:80px; }
+
+        /* ── corner frame lines ── */
+        .sbs-fl { position:absolute; background:#C9A84C; }
+        .sbs-fl-top   { top:0; left:0; height:1.5px; width:0;  transition:width  .7s cubic-bezier(.16,1,.3,1) .8s;  }
+        .sbs-fl-left  { top:0; left:0; width:1.5px;  height:0; transition:height .7s cubic-bezier(.16,1,.3,1) .9s;  }
+        .sbs-fl-bot   { bottom:0; right:0; height:1.5px; width:0;  transition:width  .7s cubic-bezier(.16,1,.3,1) 1.0s; }
+        .sbs-fl-right { bottom:0; right:0; width:1.5px;  height:0; transition:height .7s cubic-bezier(.16,1,.3,1) 1.1s; }
+        .sbs-active .sbs-fl-top, .sbs-active .sbs-fl-bot   { width:55%;  }
+        .sbs-active .sbs-fl-left,.sbs-active .sbs-fl-right { height:55%; }
+
+        /* ── shimmer ── */
+        .sbs-founder-box::after {
+          content:''; position:absolute; inset:0; z-index:2;
+          background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.15) 50%,transparent 60%);
+          transform:translateX(-100%);
+          transition:transform 1s ease 1.2s;
+        }
+        .sbs-active .sbs-founder-box::after { transform:translateX(200%); }
+
+        /* ── buttons ── */
+        .sbs-btn { position:relative; overflow:hidden; }
+        .sbs-btn-bg {
           position:absolute; inset:0;
           transform:translateX(-101%);
           transition:transform .4s cubic-bezier(.16,1,.3,1);
         }
-        .sbs-about-btn:hover .sbs-about-btn-bg  { transform:translateX(0); }
-        .sbs-about-btn:hover .sbs-about-btn-arr { transform:translateX(5px); }
-        .sbs-about-btn-arr { transition:transform .3s; display:inline-block; }
+        .sbs-btn:hover .sbs-btn-bg  { transform:translateX(0); }
+        .sbs-btn:hover .sbs-btn-arr { transform:translateX(6px); }
+        .sbs-btn-arr { transition:transform .3s; }
 
-        /* ── stat hover gold top bar ── */
-        .sbs-abt-stat { position:relative; }
-        .sbs-abt-stat::before {
+        /* ── bottom stat hover ── */
+        .sbs-bs { position:relative; overflow:hidden; }
+        .sbs-bs::before {
           content:''; position:absolute; top:0; left:0; right:0; height:2px;
-          background:#C9A84C; transform:scaleX(0); transform-origin:left;
-          transition:transform .35s cubic-bezier(.16,1,.3,1);
+          background:#C9A84C;
+          transform:scaleX(0); transform-origin:left;
+          transition:transform .4s cubic-bezier(.16,1,.3,1);
         }
-        .sbs-abt-stat:hover::before { transform:scaleX(1); }
+        .sbs-bs:hover::before { transform:scaleX(1); }
 
-        .sbs-portrait-mobile {
-          width: 100%;
-          aspect-ratio: 4/3;
+        /* ── badge ── */
+        .sbs-badge-hidden { opacity:0; transform:scale(0) rotate(-10deg); }
+        .sbs-badge-show   { opacity:1; transform:scale(1) rotate(0deg);   }
+
+        /* ── rings ── */
+        @keyframes sbsRingPulse { 0%,100%{transform:scale(1);opacity:.5} 50%{transform:scale(1.05);opacity:1} }
+        .sbs-ring { animation:sbsRingPulse 6s ease-in-out infinite; }
+
+        /* ── award dot ── */
+        @keyframes sbsDotPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+        .sbs-award-dot { animation:sbsDotPulse 2s ease infinite; }
+
+        /* ── Responsive main grid ── */
+        .sbs-about-grid {
+          display: grid;
+          grid-template-columns: 1fr 400px 1fr;
+          padding: 80px 64px 0;
           position: relative;
-          overflow: hidden;
+          z-index: 2;
+          align-items: center;
         }
-
-        /* ── credentials: 2-col on mobile, 4-col from sm ── */
-        .sbs-cred-grid {
+        .sbs-about-grid-left {
+          padding-right: 52px;
+        }
+        .sbs-about-grid-right {
+          padding-left: 52px;
+        }
+        
+        .sbs-stats-strip {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          border-top: 1px solid rgba(201,168,76,.15);
+          grid-template-columns: repeat(4, 1fr);
+          margin-top: 56px;
+          border-top: 1px solid rgba(201,168,76,.18);
+          position: relative;
+          z-index: 2;
         }
-        @media (min-width: 640px) {
-          .sbs-cred-grid { grid-template-columns: repeat(4, 1fr); }
+        
+        .sbs-brand-strip {
+          background: #C9A84C;
+          padding: 15px 64px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          position: relative;
+          z-index: 2;
         }
-
-        /* ── credential border-right handling ── */
-        .sbs-cred-item { border-right: 1px solid rgba(201,168,76,.1); border-bottom: 1px solid rgba(201,168,76,.08); }
-        @media (min-width: 640px) {
-          .sbs-cred-item:nth-child(4) { border-right: none; }
-          .sbs-cred-item { border-bottom: none; }
-        }
-        .sbs-cred-item:nth-child(2) { border-right: none; }
-        @media (min-width: 640px) {
-          .sbs-cred-item:nth-child(2) { border-right: 1px solid rgba(201,168,76,.1); }
-        }
-
-        /* ── stat strip: 2-col mobile, 4-col desktop ── */
-        .sbs-stat-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          border-top: 1px solid rgba(201,168,76,.14);
-        }
-        @media (min-width: 1024px) {
-          .sbs-stat-grid { grid-template-columns: repeat(4, 1fr); }
-        }
-        .sbs-stat-item {
-          border-right: 1px solid rgba(201,168,76,.1);
-          border-bottom: 1px solid rgba(201,168,76,.08);
-          padding: 24px 16px;
-          text-align: center;
-        }
-        @media (min-width: 480px) {
-          .sbs-stat-item { padding: 28px 20px; }
-        }
-        @media (min-width: 1024px) {
-          .sbs-stat-item { padding: 32px 24px; border-bottom: none; }
-          .sbs-stat-item:nth-child(4) { border-right: none; }
-        }
-        .sbs-stat-item:nth-child(2) { border-right: none; }
-        @media (min-width: 1024px) {
-          .sbs-stat-item:nth-child(2) { border-right: 1px solid rgba(201,168,76,.1); }
+        
+        .sbs-brand-services {
+          display: flex;
         }
 
-        /* ── pulsing dot ── */
-        @keyframes sbsDotPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        /* Responsive Breakpoints */
+        @media (max-width: 1024px) {
+          .sbs-about-grid {
+            grid-template-columns: 1fr;
+            padding: 48px 32px 0;
+            gap: 40px;
+          }
+          .sbs-about-grid-left {
+            padding-right: 0 !important;
+          }
+          .sbs-about-grid-center {
+            max-width: 400px;
+            margin: 0 auto;
+            width: 100%;
+          }
+          .sbs-about-grid-right {
+            padding-left: 0 !important;
+          }
+          .sbs-stats-strip {
+            grid-template-columns: repeat(2, 1fr);
+            margin-top: 40px;
+          }
+          .sbs-bs {
+            border-right: none !important;
+            border-bottom: 1px solid rgba(201,168,76,.1);
+            padding: 24px 20px !important;
+          }
+          .sbs-bs:nth-child(even) {
+            border-left: 1px solid rgba(201,168,76,.1);
+          }
+          .sbs-brand-strip {
+            padding: 20px 32px;
+            flex-direction: column;
+            gap: 16px;
+            text-align: center;
+          }
+          .sbs-brand-services {
+            flex-direction: column;
+            gap: 8px;
+          }
+          .sbs-brand-services span {
+            border-right: none !important;
+            padding: 0 !important;
+          }
+        }
 
-        /* ── card inner letter padding responsive ── */
-        .sbs-letter-pad {
-          padding: 32px 24px 28px;
-        }
-        @media (min-width: 640px) {
-          .sbs-letter-pad { padding: 44px 44px 36px; }
-        }
-        @media (min-width: 1024px) {
-          .sbs-letter-pad { padding: 52px 52px 48px; }
+        @media (max-width: 480px) {
+          .sbs-about-grid {
+            padding: 32px 16px 0;
+            gap: 32px;
+          }
+          .sbs-stats-strip {
+            grid-template-columns: 1fr;
+          }
+          .sbs-bs:nth-child(even) {
+            border-left: none !important;
+          }
+          .sbs-brand-strip {
+            padding: 20px 16px;
+          }
         }
       `}</style>
 
-      {/* ═══════════ SECTION ═══════════ */}
+      {/* ── Cursor dot ── */}
+      <div ref={curDotRef} className={`sbs-cur-dot${curBig ? " big" : ""}`} />
+      {/* ── Cursor ring ── */}
+      <div ref={curRingRef} className={`sbs-cur-ring${curBig ? " big" : ""}`} />
+
+      {/* ═══════ SECTION ═══════ */}
       <section
         ref={sectionRef}
-        style={{
-          background: "#fbf3e4",
-          padding: "60px 16px 0",
-          fontFamily: "'DM Sans', sans-serif",
-        }}
-        className="sm:pt-16 lg:pt-20"
+        className={active ? "sbs-active" : ""}
+        style={{ background:"#fbf3e4", position:"relative", overflow:"hidden", fontFamily:"'DM Sans',sans-serif" }}
       >
+        {/* Particles */}
+        <canvas ref={canvasRef} style={{ position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none",zIndex:0,opacity:.45 }}/>
 
-        {/* ── Centred Header ── */}
-        <div style={{ textAlign: "center", marginBottom: 32, maxWidth: "85rem", margin: "0 auto 32px" }}
-             className="px-4 sm:px-6"
-        >
-          <motion.span
-            initial={{ opacity: 0, y: 10 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.5 }}
-            style={{
-              display: "block", fontSize: 11, letterSpacing: ".26em",
-              textTransform: "uppercase", color: "#C9A84C", fontWeight: 600, marginBottom: 12,
-            }}
-          >
-            About Us
-          </motion.span>
-          <motion.h2
-            initial={{ opacity: 0, y: 16 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: "clamp(26px, 5vw, 46px)",
-              fontWeight: 700, color: "#1A1A1A", lineHeight: 1.15,
-              marginBottom: 8,
-            }}
-          >
-            Who you&apos;ll work with.
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            style={{
-              fontSize: "clamp(14px, 2vw, 15px)", color: "#7A7269", fontWeight: 400,
-              margin: "0 auto", maxWidth: 400,
-            }}
-          >
-            Meet the founder behind SBS Financial Services.
-          </motion.p>
-        </div>
+        {/* Deco rings */}
+        {[600,400,200].map((s,i) => (
+          <div key={i} className="sbs-ring" style={{
+            position:"absolute", borderRadius:"50%",
+            border:"1px solid rgba(201,168,76,0.1)",
+            pointerEvents:"none", zIndex:0,
+            width:s, height:s, top:-s*0.33, right:-s*0.25,
+            animationDelay:`${i}s`,
+          }}/>
+        ))}
 
-        {/* ═════════════════════════════════
-            THE CARD
-        ═════════════════════════════════ */}
-        <div className="max-w-[85rem] mx-auto px-4 sm:px-6" ref={cardRef}>
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
-            style={{
-              background: "#FFFDF8",
-              border: "1px solid rgba(201,168,76,0.18)",
-              borderRadius: 4,
-              boxShadow: "0 12px 60px rgba(26,20,10,0.07)",
-              overflow: "hidden",
-              position: "relative",
-            }}
-          >
-            {/* Gold corner brackets */}
-            {[
-              { top:12, left:12, borderTop:"1.5px solid rgba(201,168,76,.45)", borderLeft:"1.5px solid rgba(201,168,76,.45)" },
-              { top:12, right:12, borderTop:"1.5px solid rgba(201,168,76,.45)", borderRight:"1.5px solid rgba(201,168,76,.45)" },
-              { bottom:12, left:12, borderBottom:"1.5px solid rgba(201,168,76,.45)", borderLeft:"1.5px solid rgba(201,168,76,.45)" },
-              { bottom:12, right:12, borderBottom:"1.5px solid rgba(201,168,76,.45)", borderRight:"1.5px solid rgba(201,168,76,.45)" },
-            ].map((s, i) => (
-              <div key={i} style={{ position:"absolute", width:22, height:22, zIndex:4, pointerEvents:"none", ...s }} />
-            ))}
+        {/* ── MAIN GRID ── */}
+        <div className="sbs-about-grid">
 
-            {/* ── MOBILE PORTRAIT (top of card on small screens) ── */}
-            <div className="sbs-portrait-mobile block lg:hidden">
-              <Image
-                src="/images/about/founder.jpg"
-                alt="Mr. Urval Shah"
-                fill
-                sizes="100vw"
-                style={{ objectFit: "cover", objectPosition: "center top", filter: "grayscale(15%)" }}
-                priority
-              />
-              {/* Gradient at bottom */}
-              <div style={{
-                position:"absolute", bottom:0, left:0, right:0, height:"40%",
-                background:"linear-gradient(to top, #FFFDF8 0%, transparent 100%)",
-                zIndex:2,
-              }} />
-              {/* 15+ badge mobile */}
-              <div style={{
-                position:"absolute", top:16, right:16, zIndex:5,
-                background:"#C9A84C", padding:"10px 14px", textAlign:"center",
-              }}>
-                <div style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:"#0A0906", lineHeight:1 }}>15+</div>
-                <div style={{ fontSize:8, letterSpacing:".14em", textTransform:"uppercase", color:"rgba(10,9,6,.65)", marginTop:2, fontWeight:600 }}>Years</div>
-              </div>
-              {/* SEBI badge mobile */}
-              <div style={{
-                position:"absolute", bottom:20, left:16, zIndex:5,
-                background:"#1A1A1A", padding:"8px 14px",
-                display:"flex", alignItems:"center", gap:7,
-              }}>
-                <div style={{ width:5, height:5, borderRadius:"50%", background:"#C9A84C", animation:"sbsDotPulse 2s ease infinite", flexShrink:0 }} />
-                <span style={{ fontSize:9, letterSpacing:".14em", textTransform:"uppercase", color:"rgba(245,240,232,.75)" }}>
-                  SEBI Registered
+          {/* ── LEFT ── */}
+          <div className="sbs-about-grid-left">
+            <span style={{
+              fontSize:20, letterSpacing:".22em", textTransform:"uppercase", color:"#C9A84C",
+              display:"block", marginBottom:18,
+              opacity:active?1:0, transform:active?"translateX(0)":"translateX(-18px)",
+              transition:"opacity .5s .1s, transform .5s .1s",
+            }}>About Us</span>
+
+            <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:40, fontWeight:700, color:"#1A1A1A", lineHeight:1.15, marginBottom:4 }}>
+              {words.map((w,i) => (
+                <span key={i} className="sbs-word-outer">
+                  <span className="sbs-word-inner" style={{
+                    fontStyle: w.em?"italic":"normal",
+                    color: w.em?"#C9A84C":"#1A1A1A",
+                    transitionDelay:`${0.2+i*0.1}s`,
+                  }}>{w.text}</span>
                 </span>
-              </div>
-            </div>
+              ))}
+            </h2>
 
-            {/* ── INNER GRID: letter (left) | portrait (right, desktop only) ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-[7fr_5fr]">
+            <div className="sbs-gold-rule"/>
 
-              {/* ───── LEFT: The Letter ───── */}
-              <div className="sbs-letter-pad" style={{ position:"relative", zIndex:2 }}>
+            <p style={{
+              fontSize:14.5, color:"#5A5450", lineHeight:1.85, marginBottom:16,
+              opacity:active?1:0, transform:active?"translateX(0)":"translateX(-14px)",
+              transition:"opacity .6s .55s, transform .6s .55s",
+            }}>
+              Established in 2019, SBS Prospects has emerged as a trusted training and HR consultancy firm in Ahmedabad, Gujarat, committed to helping students and professionals navigate their career development with confidence. With an industry-first approach and hands-on exposure, we strive to simplify skill acquisition and create opportunities that support long-term job readiness.
+            </p>
+            <p style={{
+              fontSize:14.5, color:"#5A5450", lineHeight:1.85, marginBottom:16,
+              opacity:active?1:0, transform:active?"translateX(0)":"translateX(-14px)",
+              transition:"opacity .6s .68s, transform .6s .68s",
+            }}>
+              Our mission is to deliver transparent, high-quality, and goal-oriented training programs that empower trainees at every stage of their professional journey. From MBA skill development and internship support to direct placement solutions and recruitment drives.
+            </p>
+            <p style={{
+              fontSize:14.5, color:"#5A5450", lineHeight:1.85, 
+              opacity:active?1:0, transform:active?"translateX(0)":"translateX(-14px)",
+              transition:"opacity .6s .68s, transform .6s .68s",
+            }}>
+               SBS Prospects is dedicated to building lasting corporate relationships through trust, training excellence, and consistent talent placement.
+            </p>
 
-                {/* Greeting */}
-                <div style={{
-                  fontFamily:"'Playfair Display', serif",
-                  fontSize:"clamp(22px, 3.5vw, 38px)",
-                  fontWeight:700, color:"#1A1A1A",
-                  marginBottom:6, lineHeight:1.2,
-                }}>
-                  Hello. <span style={{ fontWeight:400, fontStyle:"italic", color:"#C9A84C" }}>I&apos;m Urval Shah.</span>
-                </div>
-
-                {/* Subtitle */}
-                <div style={{ fontSize:"clamp(12px, 1.6vw, 13px)", color:"#9A9088", marginBottom:22, letterSpacing:".01em" }}>
-                  Founder &amp; Managing Director — SBS Financial Services
-                </div>
-
-                {/* Gold rule */}
-                <div style={{ width:40, height:2, background:"#C9A84C", marginBottom:22, opacity:0.7 }} />
-
-                {/* Letter paragraphs */}
-                <div style={{ display:"flex", flexDirection:"column", gap:14, marginBottom:28 }}>
-                  {[
-                    "I founded SBS Financial Services in 2019 with one conviction: that every family deserves access to financial guidance that is transparent, disciplined, and deeply personalised. Too often, financial advice is designed around products—not people. I set out to change that.",
-                    "Over the past 15+ years, I have helped individuals, families, and professionals across Gujarat build financial plans that survive economic cycles. From SEBI-registered advisory to mutual funds, insurance, and tax-saving solutions—my team and I build frameworks that work for your life stage, risk appetite, and legacy goals.",
-                    "When you work with SBS, you work directly with me. No hand-offs, no layers of intermediaries. Just honest, expert guidance—built on trust.",
-                  ].map((text, i) => (
-                    <p key={i} style={{ fontSize:"clamp(13px, 1.8vw, 15px)", color:"#4A4440", lineHeight:1.8, margin:0 }}>
-                      {text}
-                    </p>
-                  ))}
-                </div>
-
-                {/* Animated Signature */}
-                <div style={{ marginBottom:24 }}>
-                  <svg viewBox="0 0 230 70" width="160" height="50" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                    <motion.path
-                      stroke="#1A1A1A"
-                      strokeWidth="2"
-                      initial={{ pathLength: 0 }}
-                      animate={inView ? { pathLength: 1 } : { pathLength: 0 }}
-                      transition={{ duration: 2.5, delay: 0.9, ease: "easeInOut" }}
-                      d="M12 56 C12 28, 28 8, 38 18 C48 28, 40 56, 30 56 C20 56, 10 44, 18 34 C26 24, 54 14, 62 14
-                         M72 34 C80 14, 98 14, 94 34 C90 54, 72 54, 82 34 C92 14, 114 16, 122 18
-                         M132 16 C124 54, 136 62, 148 44
-                         M158 26 C150 60, 166 62, 174 28
-                         M182 22 L206 22 C198 44, 212 54, 220 38"
-                    />
-                    <motion.line
-                      stroke="#C9A84C" strokeWidth="1.2" strokeOpacity={0.55}
-                      x1="8" y1="66" x2="222" y2="66"
-                      initial={{ pathLength: 0 }}
-                      animate={inView ? { pathLength: 1 } : { pathLength: 0 }}
-                      transition={{ duration: 0.8, delay: 3.5 }}
-                    />
-                  </svg>
-                  <div style={{ fontSize:10, letterSpacing:".16em", textTransform:"uppercase", color:"#9A9088", marginTop:5 }}>
-                    — Mr. Urval Shah, Founder
-                  </div>
-                </div>
-
-                {/* CTA Buttons */}
-                <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:36 }}>
-                  {[
-                    { label:"Read Our Full Story", primary:true  },
-                    { label:"Meet The Team",        primary:false },
-                  ].map((b, i) => (
-                    <button
-                      key={i}
-                      className="sbs-about-btn"
-                      style={{
-                        display:"flex", alignItems:"center", gap:8,
-                        padding:"12px 22px",
-                        border: b.primary ? "none" : "1px solid rgba(26,26,26,0.16)",
-                        background: b.primary ? "#1A1A1A" : "transparent",
-                        color: b.primary ? "#F5F0E8" : "#1A1A1A",
-                        fontFamily:"'DM Sans',sans-serif",
-                        fontSize:"clamp(10px, 1.4vw, 11px)",
-                        letterSpacing:".13em", textTransform:"uppercase", fontWeight:600,
-                        borderRadius:3,
-                        whiteSpace:"nowrap",
-                      }}
-                    >
-                      <div className="sbs-about-btn-bg" style={{ background: b.primary ? "#C9A84C" : "rgba(201,168,76,.1)" }} />
-                      <span style={{ position:"relative", zIndex:1 }}>{b.label}</span>
-                      <span className="sbs-about-btn-arr" style={{ position:"relative", zIndex:1, fontSize:13 }}>→</span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Credentials grid */}
-                <div className="sbs-cred-grid">
-                  {[
-                    { label:"SEBI Registered", sub:"Investment Advisor" },
-                    { label:"15+ Years",        sub:"of Experience"      },
-                    { label:"NISM Certified",   sub:"Financial Planner"  },
-                    { label:"₹500Cr+",          sub:"Assets Managed"     },
-                  ].map((c, i) => (
-                    <div
-                      key={c.label}
-                      className={`sbs-abt-stat sbs-cred-item`}
-                      style={{ padding:"16px 14px" }}
-                    >
-                      <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(13px, 2vw, 16px)", fontWeight:700, color:"#1A1A1A", marginBottom:3 }}>
-                        {c.label}
-                      </div>
-                      <div style={{ fontSize:9, letterSpacing:".1em", textTransform:"uppercase", color:"#9A9088" }}>
-                        {c.sub}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* ───── RIGHT: Portrait (desktop only) ───── */}
-              <div
-                className="hidden lg:block"
-                style={{ position:"relative", minHeight:560, overflow:"hidden" }}
+            {/* Buttons */}
+            <div style={{
+              display:"flex", flexDirection:"column", gap:10, marginTop:36,
+              opacity:active?1:0, transform:active?"translateY(0)":"translateY(14px)",
+              transition:"opacity .5s .85s, transform .5s .85s",
+            }}>
+              <Link
+                href="/about"
+                className="sbs-btn"
+                onMouseEnter={onEnter} onMouseLeave={onLeave}
+                style={{
+                  display:"flex", alignItems:"center", justifyContent:"space-between",
+                  width:"100%", padding:"11px 18px",
+                  alignSelf:"center", borderRadius:4,
+                  border: "none",
+                  background: "#1A1A1A",
+                  color: "#F5F0E8",
+                  fontFamily:"'DM Sans',sans-serif", fontSize:11, letterSpacing:".14em",
+                  textTransform:"uppercase", fontWeight:500,
+                  transition:"color .3s, border-color .3s",
+                  textDecoration: "none",
+                }}
               >
+                <div className="sbs-btn-bg" style={{ background: "#C9A84C" }}/>
+                <span style={{ position:"relative", zIndex:1 }}>Read Our Full Story</span>
+                <span className="sbs-btn-arr" style={{ position:"relative", zIndex:1, fontSize:15 }}>→</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* ── CENTER: Founder image ── */}
+          <div className="sbs-about-grid-center" style={{ position:"relative", display:"flex", alignItems:"center", justifyContent:"center", padding:"20px 0" }}>
+            {/* Outer wrapper — controls fade + badge positioning relative to image */}
+            <div style={{
+              position:"relative", width:"100%",
+              opacity:active?1:0, transform:active?"translateY(0) scale(1)":"translateY(40px) scale(.95)",
+              transition:"opacity 1s .15s, transform 1s cubic-bezier(.16,1,.3,1) .15s",
+            }}>
+
+              {/* Gold border frame — sits exactly around image */}
+              <div style={{
+                position:"absolute",
+                top:-10, left:-10, right:-10, bottom:-10,
+                zIndex:0, pointerEvents:"none",
+              }}>
+                {/* top-left corner */}
+                <div className="sbs-fl sbs-fl-top"/>
+                <div className="sbs-fl sbs-fl-left"/>
+                {/* bottom-right corner */}
+                <div className="sbs-fl sbs-fl-bot"/>
+                <div className="sbs-fl sbs-fl-right"/>
+              </div>
+
+              {/* Image box */}
+              <div
+                className="sbs-founder-box"
+                style={{
+                  position:"relative", zIndex:1,
+                  width:"100%", aspectRatio:"3/4",
+                  overflow:"hidden", background:"#D4CFC5",
+                }}
+              >
+                {/* Replace src="/image.png" with actual founder image */}
                 <Image
                   src="/images/about/founder.jpg"
-                  alt="Mr. Urval Shah — Founder, SBS Financial Services"
+                  alt="Mr. Urval Shah"
                   fill
-                  sizes="(min-width: 1024px) 38vw, 0vw"
-                  style={{ objectFit:"cover", objectPosition:"center top", filter:"grayscale(15%)" }}
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  style={{ objectFit:"cover", objectPosition:"center center" }}
                   priority
                 />
-                {/* Left fade into card */}
-                <div style={{
-                  position:"absolute", top:0, left:0, bottom:0, width:"42%",
-                  background:"linear-gradient(to right, #FFFDF8 0%, transparent 100%)",
-                  zIndex:2,
-                }} />
                 {/* Bottom fade */}
                 <div style={{
-                  position:"absolute", bottom:0, left:0, right:0, height:"28%",
-                  background:"linear-gradient(to top, #FFFDF8 0%, transparent 100%)",
-                  zIndex:2,
-                }} />
-                {/* SEBI badge */}
-                <div style={{
-                  position:"absolute", bottom:28, right:24, zIndex:5,
-                  background:"#1A1A1A", padding:"10px 16px",
-                  display:"flex", alignItems:"center", gap:8,
-                }}>
-                  <div style={{ width:6, height:6, borderRadius:"50%", background:"#C9A84C", animation:"sbsDotPulse 2s ease infinite", flexShrink:0 }} />
-                  <span style={{ fontSize:9, letterSpacing:".16em", textTransform:"uppercase", color:"rgba(245,240,232,.75)" }}>
-                    SEBI Registered Advisor
-                  </span>
-                </div>
-                {/* 15+ badge */}
-                <div style={{
-                  position:"absolute", top:24, right:24, zIndex:5,
-                  background:"#C9A84C", padding:"14px 18px", textAlign:"center",
-                }}>
-                  <div style={{ fontFamily:"'Playfair Display',serif", fontSize:24, fontWeight:700, color:"#0A0906", lineHeight:1 }}>15+</div>
-                  <div style={{ fontSize:8, letterSpacing:".16em", textTransform:"uppercase", color:"rgba(10,9,6,.65)", marginTop:3, fontWeight:600 }}>Years</div>
+                  position:"absolute", bottom:0, left:0, right:0, height:"42%",
+                  background:"linear-gradient(to top, rgba(251,243,228,0.97) 0%, transparent 100%)",
+                  zIndex:3,
+                }}/>
+                {/* Name tag */}
+                <div style={{ position:"absolute",bottom:0,left:0,right:0,zIndex:4,padding:"20px 24px",textAlign:"center" }}>
+                  <div style={{ fontFamily:"'Playfair Display',serif",fontSize:21,fontWeight:700,color:"#1A1A1A",marginBottom:4 }}>Mr. Urval Shah</div>
+                  <div style={{ fontSize:9,letterSpacing:".2em",textTransform:"uppercase",color:"#C9A84C" }}>Founder &amp; Managing Director</div>
                 </div>
               </div>
+
+              {/* Gold 6+ badge — sticks to top-right corner of image */}
+              <div
+                className={active ? "sbs-badge-show" : "sbs-badge-hidden"}
+                style={{
+                  position:"absolute", top:0, right:0, zIndex:6,
+                  background:"#C9A84C", padding:"14px 18px", textAlign:"center", minWidth:80,
+                  transition:"opacity .5s .95s, transform .5s cubic-bezier(.34,1.56,.64,1) .95s",
+                }}
+              >
+                <span style={{ fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:"#0A0906",display:"block",lineHeight:1 }}>6+</span>
+                <span style={{ fontSize:8,letterSpacing:".14em",textTransform:"uppercase",color:"rgba(10,9,6,.6)",display:"block",marginTop:4 }}>Years</span>
+              </div>
+
+              {/* SEBI tag — bottom left, outside image */}
+              <div style={{
+                position:"absolute", bottom:64, left:-20, zIndex:6,
+                background:"#1A1A1A", padding:"10px 16px",
+                display:"flex", alignItems:"center", gap:10,
+                opacity:active?1:0, transform:active?"translateX(0)":"translateX(-20px)",
+                transition:"opacity .5s 1.1s, transform .5s cubic-bezier(.16,1,.3,1) 1.1s",
+              }}>
+                <div className="sbs-award-dot" style={{ width:6,height:6,borderRadius:"50%",background:"#C9A84C",flexShrink:0 }}/>
+                <span style={{ fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:"rgba(245,240,232,.7)" }}>Career & HR Advisory</span>
+              </div>
             </div>
-          </motion.div>
+          </div>
+
+          {/* ── RIGHT: Quote — vertically centered with image ── */}
+          <div className="sbs-about-grid-right" style={{
+            display:"flex", flexDirection:"column", justifyContent:"center",
+            alignSelf:"stretch",
+          }}>
+            <div style={{
+              opacity:active?1:0, transform:active?"translateX(0)":"translateX(18px)",
+              transition:"opacity .7s .4s, transform .7s .4s",
+            }}>
+              {/* Opening quote — large, dark, styled */}
+              <div style={{
+                fontFamily:"'Playfair Display',serif",
+                fontSize:96, fontWeight:700, lineHeight:1,
+                color:"#1A1A1A", marginBottom:-24, marginLeft:-6,
+                opacity: 0.12,
+              }}>&ldquo;</div>
+
+              <p style={{
+                fontFamily:"'Cormorant Garamond',serif", fontStyle:"italic",
+                fontSize:22, color:"#1A1A1A", lineHeight:1.68, marginBottom:6,
+              }}>
+                Professional confidence is built through practical skill acquisition, hands-on experience, and dedicated mentorship.
+              </p>
+
+              {/* Closing quote — right aligned, tight to text */}
+              <div style={{
+                fontFamily:"'Playfair Display',serif",
+                fontSize:96, fontWeight:700, lineHeight:0.8,
+                color:"#1A1A1A", textAlign:"right",
+                marginTop:-12, marginBottom:16,
+                opacity: 0.12,
+              }}>&rdquo;</div>
+
+              <span style={{ fontSize:10, letterSpacing:".16em", textTransform:"uppercase", color:"#C9A84C" }}>
+                — Mr. Urval Shah, Founder
+              </span>
+            </div>
+          </div>
+
+        </div>{/* end main-grid */}
+
+        {/* ── BOTTOM 4-STAT STRIP ── */}
+        <div className="sbs-stats-strip">
+          {[
+            { num:`${counters.years}`,    suf:"+",   lbl:"Years of Trust", sub:"Since 2019"         },
+            { num:`${counters.clients>=150?(counters.clients/1000).toFixed(1)+"K":counters.clients}`, suf:"+", lbl:"Students Trained", sub:"Across Gujarat" },
+            { num:`${counters.assets}`,  suf:"+",   lbl:"Hiring Partners", sub:"Corporate Network" },
+            { num:`${counters.retention}`,suf:"%",   lbl:"Placement Success",  sub:"Job Readiness"  },
+          ].map((s,i) => (
+            <div
+              key={i} className="sbs-bs"
+              onMouseEnter={onEnter} onMouseLeave={onLeave}
+              style={{
+                padding:"28px 40px",
+                borderRight: i<3?"1px solid rgba(201,168,76,.1)":"none",
+                display:"flex", flexDirection:"column", gap:5,
+                opacity:active?1:0, transform:active?"translateY(0)":"translateY(18px)",
+                transition:`opacity .4s ${1.0+i*0.13}s, transform .4s ${1.0+i*0.13}s`,
+              }}
+            >
+              <span style={{ fontFamily:"'Playfair Display',serif",fontSize:36,fontWeight:700,color:"#1A1A1A",lineHeight:1 }}>
+                {s.num}<span style={{color:"#C9A84C"}}>{s.suf}</span>
+              </span>
+              <span style={{ fontSize:10,letterSpacing:".14em",textTransform:"uppercase",color:"#9A9088" }}>{s.lbl}</span>
+              <span style={{ fontSize:12,color:"#C9A84C",fontWeight:500 }}>{s.sub}</span>
+            </div>
+          ))}
         </div>
 
-        {/* ═════════════════════════════════
-            STAT STRIP
-        ═════════════════════════════════ */}
-        <div className="max-w-[85rem] mx-auto px-4 sm:px-6">
-          <div className="sbs-stat-grid">
-            {[
-              { num:`${counters.years}`,    suf:"+",   lbl:"Years of Trust", sub:"Since 2019"         },
-              { num:`${counters.clients}K`, suf:"+",   lbl:"Happy Clients",  sub:"Across Gujarat"     },
-              { num:`₹${counters.assets}`,  suf:"Cr+", lbl:"Assets Managed", sub:"Growing every year" },
-              { num:`${counters.retention}`,suf:"%",   lbl:"Retention Rate",  sub:"Clients for life"  },
-            ].map((s, i) => (
-              <motion.div
-                key={s.lbl}
-                initial={{ opacity:0, y:14 }}
-                animate={inView ? { opacity:1, y:0 } : {}}
-                transition={{ duration:0.5, delay:0.5 + i*0.12 }}
-                className="sbs-abt-stat sbs-stat-item"
-              >
-                <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(26px, 3.5vw, 34px)", fontWeight:700, color:"#1A1A1A", lineHeight:1, display:"block" }}>
-                  {s.num}<span style={{ color:"#C9A84C" }}>{s.suf}</span>
-                </span>
-                <span style={{ fontSize:"clamp(9px, 1.2vw, 10px)", letterSpacing:".14em", textTransform:"uppercase", color:"#9A9088", display:"block", marginTop:6 }}>{s.lbl}</span>
-                <span style={{ fontSize:"clamp(11px, 1.4vw, 12px)", color:"#C9A84C", fontWeight:500, display:"block", marginTop:2 }}>{s.sub}</span>
-              </motion.div>
+        {/* ── BRAND STRIP ── */}
+        <div className="sbs-brand-strip">
+          <div style={{
+            position:"absolute", top:0, left:0, right:0, height:1,
+            background:"linear-gradient(90deg,transparent,#C9A84C 30%,#C9A84C 70%,transparent)",
+            opacity:.3,
+          }}/>
+          <span style={{ fontSize:10,letterSpacing:".14em",textTransform:"uppercase",color:"#1A1A1A" }}>
+            SBS Prospects · Ahmedabad, Gujarat
+          </span>
+          <div className="sbs-brand-services">
+            {["Industry Training","HR Consultancy","Recruitment","Internships"].map((s,i,arr) => (
+              <span key={i} style={{
+                fontSize:10, letterSpacing:".1em", textTransform:"uppercase",
+                color:"#1A1A1A", padding:"0 16px",
+                borderRight: i<arr.length-1?"1px solid rgba(255,255,255,.07)":"none",
+              }}>{s}</span>
             ))}
           </div>
+          <span style={{ fontSize:10,letterSpacing:".14em",textTransform:"uppercase",color:"#1A1A1A" }}>
+            Career & HR Advisory
+          </span>
         </div>
+
       </section>
     </>
   );
