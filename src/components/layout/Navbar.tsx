@@ -8,8 +8,8 @@ const NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "About Us", href: "/about" },
   { label: "Services", href: "/services" },
-  { label: "Training & Courses", href: "/services" },
-  { label: "HR Consultancy", href: "/services" },
+  { label: "Training & Courses", href: "/services#training-courses" },
+  { label: "HR Consultancy", href: "/services#hr-consultancy" },
   { label: "Contact", href: "/contact" },
 ];
 
@@ -37,7 +37,7 @@ const NavbarSection: React.FC = () => {
         </Link>
 
         {/* RIGHT SIDE (NAV + CTA) */}
-        <div className="hidden xl:flex items-center gap-6">
+        <div className="hidden lg:flex items-center gap-6">
 
           {/* NAV LINKS */}
           <ul className="flex items-center gap-8">
@@ -66,12 +66,12 @@ const NavbarSection: React.FC = () => {
         {/* MOBILE MENU BUTTON (FIXED SPACING) */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="xl:hidden flex flex-col gap-1.25 p-2 -mr-2"
+          className="lg:hidden flex flex-col gap-1.25 p-2 mr-4"
         >
-        <span className="w-6 h-0.5 bg-black"></span>
-        <span className="w-6 h-0.5 bg-black"></span>
-        <span className="w-6 h-0.5 bg-black"></span>
-      </button>
+          <span className="block w-6 h-0.5 bg-black"></span>
+          <span className="block w-6 h-0.5 bg-black"></span>
+          <span className="block w-6 h-0.5 bg-black"></span>
+        </button>
       </div>
 
       {/* MOBILE MENU */}
@@ -102,13 +102,6 @@ const NavbarSection: React.FC = () => {
           );
         })}
 
-        <Link
-          href="/contact"
-          onClick={() => setMenuOpen(false)}
-          className="border border-black px-6 py-3 text-sm font-bold uppercase tracking-[0.08em] hover:bg-black hover:text-white"
-        >
-          Contact Us
-        </Link>
       </div>
     </nav>
   );
