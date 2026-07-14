@@ -146,7 +146,7 @@ const HeroSection: React.FC = () => {
       {/* Content */}
       <Container className="relative z-10 pt-28 sm:pt-32">
 
-  <div className="max-w-[48.75rem] max-sm:max-w-[77.5rem] w-full">
+  <div className="max-w-48.75px max-sm:max-w-77.5px">
 
         {/* Headline */}
         <h1 style={styles.headline}
@@ -204,10 +204,10 @@ const HeroSection: React.FC = () => {
             onMouseEnter={() => setPrimaryHover(true)}
             onMouseLeave={() => setPrimaryHover(false)}
           >
-            Explore Traning Programs 
+            Explore Training Programs 
           </a>
           <a
-            href="#"
+            href="/contact"
             style={{
               ...styles.btnSecondary,
               ...(secondaryHover
