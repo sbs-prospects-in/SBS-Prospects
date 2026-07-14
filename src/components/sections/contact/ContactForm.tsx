@@ -164,7 +164,7 @@ export default function ContactForm() {
       const response = await fetch(scriptUrl, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "text/plain;charset=utf-8",
         },
         body: JSON.stringify({
           name: form.name,
