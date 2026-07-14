@@ -167,10 +167,12 @@ export default function ContactForm() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: form.subject || "General Inquiry",
-          fullName: form.name,
+          name: form.name,
+          company: form.company || "N/A",
+          phone: form.phone,
           email: form.email,
-          message: `Company: ${form.company || "N/A"}\nPhone: ${form.phone || "N/A"}\nMessage: ${form.message}`,
+          subject: form.subject || "General Inquiry",
+          message: form.message,
         }),
       });
 
